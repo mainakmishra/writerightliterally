@@ -258,6 +258,47 @@ export function useTextAnalysis() {
     lastAnalyzedTextRef.current = '';
   }, []);
 
+  const acceptAllSuggestions = useCallback(() => {
+    if (suggestions.length === 0) return;
+    
+    // Sort suggestions by startIndex in descending order to apply from end to start
+    const sortedSuggestions = [...suggestions].sort((a, b) => b.startIndex - a.startIndex);
+    
+    let currentText = textRef.current;
+    
+    for (const suggestion of sortedSuggestions) {
+      let startIdx = suggestion.startIndex;
+      let endIdx = suggestion.endIndex;
+      
+      const textAtOriginalPos = currentText.slice(startIdx, endIdx);
+      
+      if (textAtOriginalPos.toLowerCase() !== suggestion.original.toLowerCase()) {
+        const searchIdx = currentText.toLowerCase().indexOf(suggestion.original.toLowerCase());
+        if (searchIdx !== -1) {
+          startIdx = searchIdx;
+          endIdx = searchIdx + suggestion.original.length;
+        } else {
+          continue;
+        }
+      }
+      
+      currentText = currentText.slice(0, startIdx) + suggestion.replacement + currentText.slice(endIdx);
+    }
+    
+    setText(currentText);
+    setSuggestions([]);
+    lastAnalyzedTextRef.current = '';
+    
+    setTimeout(() => {
+      analyzeWithAI(currentText);
+    }, 100);
+  }, [suggestions, analyzeWithAI]);
+
+  const reanalyze = useCallback(() => {
+    lastAnalyzedTextRef.current = '';
+    analyzeWithAI(textRef.current);
+  }, [analyzeWithAI]);
+
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
@@ -278,5 +319,7 @@ export function useTextAnalysis() {
     applySuggestion,
     dismissSuggestion,
     clearText,
+    acceptAllSuggestions,
+    reanalyze,
   };
 }
