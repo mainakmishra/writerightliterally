@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldCheck, AlertTriangle, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, CheckCircle, XCircle, HelpCircle, Globe, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -12,6 +12,7 @@ interface Claim {
   verdict: string;
   explanation: string;
   confidence: number;
+  sources?: string[];
 }
 
 interface FactCheckResult {
@@ -41,17 +42,17 @@ export function FactChecker({ text }: FactCheckerProps) {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-writing-tools', {
-        body: { tool: 'fact-check', text },
+      // Use Perplexity for web-powered fact checking
+      const { data, error } = await supabase.functions.invoke('perplexity-search', {
+        body: { type: 'fact-check', text },
       });
 
       if (error) throw error;
       
-      // Validate response structure
       if (data && Array.isArray(data.claims) && typeof data.overallCredibility === 'number') {
         setResult(data);
       } else {
-        throw new Error('Invalid response from AI. Please try again.');
+        throw new Error('Invalid response. Please try again.');
       }
     } catch (error: any) {
       console.error('Fact check error:', error);
@@ -89,15 +90,19 @@ export function FactChecker({ text }: FactCheckerProps) {
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-primary" />
           <h3 className="font-semibold">Fact Checker</h3>
+          <Badge variant="secondary" className="text-xs">
+            <Globe className="w-3 h-3 mr-1" />
+            Web Search
+          </Badge>
         </div>
         <Button onClick={handleCheck} disabled={isLoading || !text.trim()}>
           <ShieldCheck className={`w-4 h-4 mr-2 ${isLoading ? 'animate-pulse' : ''}`} />
-          {isLoading ? 'Checking...' : 'Check Facts'}
+          {isLoading ? 'Searching...' : 'Check Facts'}
         </Button>
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Verify claims and statements in your text for accuracy.
+        Verify claims using real-time web search for accuracy.
       </p>
 
       {result && (
@@ -129,6 +134,22 @@ export function FactChecker({ text }: FactCheckerProps) {
                     <Progress value={claim.confidence} className="h-1 w-20" />
                     <span className="font-medium">{claim.confidence}%</span>
                   </div>
+                  {claim.sources && claim.sources.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                      {claim.sources.map((source, j) => (
+                        <Button
+                          key={j}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-6"
+                          onClick={() => window.open(source, '_blank')}
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          Source {j + 1}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>
