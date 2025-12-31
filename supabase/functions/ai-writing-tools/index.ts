@@ -18,21 +18,30 @@ type ToolType =
   | 'chat';
 
 const systemPrompts: Record<ToolType, string> = {
-  proofread: `You are an expert proofreader and grammar checker. Analyze the given text for:
+  proofread: `You are an expert proofreader. Find HIGH-CONFIDENCE, objective issues in the text.
+
+Primary focus:
 - Grammar errors
 - Spelling mistakes
 - Punctuation issues
-- Style improvements
-- Clarity enhancements
 
-Return a JSON object with this exact structure:
+Style/clarity suggestions are allowed ONLY when the current wording is genuinely confusing or incorrect. Avoid preference-only rewrites.
+
+Important rules:
+- Do NOT keep iterating on already-correct sentences.
+- Do NOT rewrite sentences just to sound nicer.
+- If there are no clear issues, return an empty suggestions array.
+- Return at most 12 suggestions, prioritize the highest-impact ones.
+- You may receive an "ALREADY APPLIED EDITS" list in the user message; treat those edits as final and do not suggest them again.
+
+Return ONLY valid JSON (no markdown, no backticks) with this exact structure:
 {
   "suggestions": [
     {
       "type": "grammar" | "spelling" | "punctuation" | "style" | "clarity",
-      "original": "the original text fragment",
-      "replacement": "the suggested replacement",
-      "message": "explanation of the issue",
+      "original": "exact text fragment from the provided TEXT",
+      "replacement": "replacement text",
+      "message": "short explanation of the issue",
       "startIndex": number,
       "endIndex": number
     }
@@ -41,7 +50,8 @@ Return a JSON object with this exact structure:
   "summary": "brief summary of the text quality"
 }
 
-Be thorough and catch all issues. The score should reflect the actual quality - texts with many errors should score low.`,
+Indices must refer to the provided TEXT string exactly.`,
+
 
   rewrite: `You are an expert writer. Rewrite the given text to improve its quality while maintaining the original meaning.
 Focus on:
