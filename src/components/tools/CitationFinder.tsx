@@ -47,7 +47,13 @@ export function CitationFinder({ text }: CitationFinderProps) {
       });
 
       if (error) throw error;
-      if (data) setResult(data);
+      
+      // Validate response structure
+      if (data && Array.isArray(data.citationsNeeded) && typeof data.citationScore === 'number') {
+        setResult(data);
+      } else {
+        throw new Error('Invalid response from AI. Please try again.');
+      }
     } catch (error: any) {
       console.error('Citation finder error:', error);
       toast({

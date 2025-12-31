@@ -46,7 +46,13 @@ export function FactChecker({ text }: FactCheckerProps) {
       });
 
       if (error) throw error;
-      if (data) setResult(data);
+      
+      // Validate response structure
+      if (data && Array.isArray(data.claims) && typeof data.overallCredibility === 'number') {
+        setResult(data);
+      } else {
+        throw new Error('Invalid response from AI. Please try again.');
+      }
     } catch (error: any) {
       console.error('Fact check error:', error);
       toast({

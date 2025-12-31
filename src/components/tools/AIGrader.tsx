@@ -53,7 +53,13 @@ export function AIGrader({ text }: AIGraderProps) {
       });
 
       if (error) throw error;
-      if (data) setResult(data);
+      
+      // Validate response structure
+      if (data && data.criteria && data.overallGrade && typeof data.numericScore === 'number') {
+        setResult(data);
+      } else {
+        throw new Error('Invalid response from AI. Please try again.');
+      }
     } catch (error: any) {
       console.error('Grading error:', error);
       toast({
