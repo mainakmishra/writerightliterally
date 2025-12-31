@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Suggestion, WritingStats, AnalysisResult } from '@/types/grammar';
+import { Suggestion, WritingStats } from '@/types/grammar';
 import { supabase } from '@/integrations/supabase/client';
 
 // Calculate basic stats locally (no AI needed)
@@ -50,6 +50,12 @@ export function useTextAnalysis() {
   
   const debounceRef = useRef<NodeJS.Timeout>();
   const lastAnalyzedTextRef = useRef<string>('');
+  const textRef = useRef<string>('');
+
+  // Keep textRef in sync
+  useEffect(() => {
+    textRef.current = text;
+  }, [text]);
 
   const analyzeWithAI = useCallback(async (textToAnalyze: string) => {
     if (!textToAnalyze.trim()) {
@@ -83,18 +89,41 @@ export function useTextAnalysis() {
         return;
       }
 
+      // Only update if the text hasn't changed since we started
+      if (textRef.current !== textToAnalyze) {
+        console.log('Text changed during analysis, skipping update');
+        setIsAnalyzing(false);
+        return;
+      }
+
       if (data?.suggestions && Array.isArray(data.suggestions)) {
-        // Add unique IDs to suggestions from AI
-        const suggestionsWithIds: Suggestion[] = data.suggestions.map((s: any, idx: number) => ({
-          id: `ai-${Date.now()}-${idx}`,
-          type: s.type || 'grammar',
-          original: s.original || '',
-          replacement: s.replacement || '',
-          message: s.message || 'Suggestion from AI',
-          startIndex: s.startIndex ?? 0,
-          endIndex: s.endIndex ?? 0,
-        }));
-        setSuggestions(suggestionsWithIds);
+        // Validate and filter suggestions that have correct indices
+        const validSuggestions: Suggestion[] = data.suggestions
+          .filter((s: any) => {
+            // Verify the original text actually exists at the specified location
+            const startIdx = s.startIndex ?? 0;
+            const endIdx = s.endIndex ?? 0;
+            const textAtLocation = textToAnalyze.slice(startIdx, endIdx);
+            
+            // Only include if original matches what's actually in the text
+            // or if it's a reasonable match (AI might paraphrase slightly)
+            return s.original && 
+                   startIdx >= 0 && 
+                   endIdx <= textToAnalyze.length &&
+                   (textAtLocation.toLowerCase().includes(s.original.toLowerCase().substring(0, 3)) ||
+                    s.original.toLowerCase().includes(textAtLocation.toLowerCase().substring(0, 3)));
+          })
+          .map((s: any, idx: number) => ({
+            id: `ai-${Date.now()}-${idx}`,
+            type: s.type || 'grammar',
+            original: s.original || '',
+            replacement: s.replacement || '',
+            message: s.message || 'Suggestion from AI',
+            startIndex: s.startIndex ?? 0,
+            endIndex: s.endIndex ?? 0,
+          }));
+        
+        setSuggestions(validSuggestions);
         setOverallScore(data.overallScore ?? 85);
       } else {
         setSuggestions([]);
@@ -132,18 +161,49 @@ export function useTextAnalysis() {
   }, [analyze]);
 
   const applySuggestion = useCallback((suggestion: Suggestion) => {
+    const currentText = textRef.current;
+    
+    // Find the original text in the current text
+    // First try exact position match
+    let startIdx = suggestion.startIndex;
+    let endIdx = suggestion.endIndex;
+    
+    const textAtOriginalPos = currentText.slice(startIdx, endIdx);
+    
+    // If the text at the original position doesn't match, search for it
+    if (textAtOriginalPos.toLowerCase() !== suggestion.original.toLowerCase()) {
+      // Search for the original text in the current text
+      const searchIdx = currentText.toLowerCase().indexOf(suggestion.original.toLowerCase());
+      if (searchIdx !== -1) {
+        startIdx = searchIdx;
+        endIdx = searchIdx + suggestion.original.length;
+      } else {
+        // Can't find the text to replace, remove this suggestion
+        console.log('Could not find original text to replace:', suggestion.original);
+        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+        return;
+      }
+    }
+    
+    // Apply the replacement
     const newText = 
-      text.slice(0, suggestion.startIndex) + 
+      currentText.slice(0, startIdx) + 
       suggestion.replacement + 
-      text.slice(suggestion.endIndex);
+      currentText.slice(endIdx);
     
     setText(newText);
-    setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
     
-    // Re-analyze after applying
-    lastAnalyzedTextRef.current = ''; // Force re-analysis
-    analyze(newText);
-  }, [text, analyze]);
+    // Remove the applied suggestion and clear others (they need re-analysis)
+    setSuggestions([]);
+    
+    // Force re-analysis with the new text
+    lastAnalyzedTextRef.current = '';
+    
+    // Small delay to let state update, then re-analyze
+    setTimeout(() => {
+      analyze(newText);
+    }, 100);
+  }, [analyze]);
 
   const dismissSuggestion = useCallback((suggestion: Suggestion) => {
     setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
