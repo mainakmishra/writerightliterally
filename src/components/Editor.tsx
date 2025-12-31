@@ -1,5 +1,6 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { Suggestion } from '@/types/grammar';
+import { EditorToolbar } from './EditorToolbar';
 
 interface EditorProps {
   value: string;
@@ -16,14 +17,94 @@ export function Editor({
   onSuggestionClick,
   placeholder = "Start writing or paste your text here..." 
 }: EditorProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const printFrameRef = useRef<HTMLIFrameElement>(null);
 
+  // Sync external value changes to contentEditable
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.max(400, textareaRef.current.scrollHeight)}px`;
+    if (editorRef.current) {
+      const currentText = editorRef.current.innerText;
+      if (currentText !== value && !editorRef.current.contains(document.activeElement)) {
+        editorRef.current.innerHTML = value || '';
+      }
     }
   }, [value]);
+
+  const handleInput = useCallback(() => {
+    if (editorRef.current) {
+      const text = editorRef.current.innerText;
+      onChange(text);
+    }
+  }, [onChange]);
+
+  const handleFormat = useCallback((command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+  }, []);
+
+  const handlePrint = useCallback(() => {
+    if (!editorRef.current) return;
+
+    const printContent = editorRef.current.innerHTML;
+    const printWindow = window.open('', '_blank');
+    
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Print Document</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                padding: 40px;
+                line-height: 1.6;
+              }
+              @media print {
+                body { padding: 20px; }
+              }
+            </style>
+          </head>
+          <body>${printContent}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  }, []);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 'b':
+            e.preventDefault();
+            handleFormat('bold');
+            break;
+          case 'i':
+            e.preventDefault();
+            handleFormat('italic');
+            break;
+          case 'u':
+            e.preventDefault();
+            handleFormat('underline');
+            break;
+          case 'p':
+            if (editorRef.current?.contains(document.activeElement)) {
+              e.preventDefault();
+              handlePrint();
+            }
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleFormat, handlePrint]);
 
   const getHighlightedText = () => {
     if (!value || suggestions.length === 0) return null;
@@ -71,36 +152,45 @@ export function Editor({
 
   return (
     <div className="relative flex-1 bg-card rounded-xl shadow-medium border border-border overflow-hidden">
-      <div className="relative p-8 min-h-[500px]">
-        {/* Overlay for highlighting - must match textarea exactly */}
-        <div 
-          className="editor-content absolute inset-0 p-8 whitespace-pre-wrap break-words text-foreground overflow-hidden"
-          style={{ 
-            opacity: suggestions.length > 0 ? 1 : 0,
-            pointerEvents: 'none',
-            wordBreak: 'break-word',
-            overflowWrap: 'break-word',
-          }}
-          aria-hidden="true"
-        >
-          {getHighlightedText()}
-        </div>
+      <EditorToolbar onFormat={handleFormat} onPrint={handlePrint} />
+      
+      <div className="relative p-8 min-h-[450px]">
+        {/* Overlay for highlighting - shown only when there are suggestions */}
+        {suggestions.length > 0 && (
+          <div 
+            className="editor-content absolute inset-0 p-8 whitespace-pre-wrap break-words text-foreground overflow-hidden pointer-events-none"
+            style={{ 
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+            }}
+            aria-hidden="true"
+          >
+            {getHighlightedText()}
+          </div>
+        )}
         
-        {/* Actual textarea */}
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="editor-content w-full min-h-[400px] bg-transparent resize-none outline-none placeholder:text-muted-foreground relative z-10"
+        {/* Rich Text Editor */}
+        <div
+          ref={editorRef}
+          contentEditable
+          onInput={handleInput}
+          className="editor-content w-full min-h-[350px] bg-transparent outline-none relative z-10"
           style={{ 
             color: suggestions.length > 0 ? 'transparent' : 'inherit',
             caretColor: 'hsl(var(--foreground))',
             wordBreak: 'break-word',
             overflowWrap: 'break-word',
           }}
-          spellCheck={false}
+          data-placeholder={placeholder}
+          suppressContentEditableWarning
         />
+        
+        {/* Placeholder */}
+        {!value && (
+          <div className="absolute top-8 left-8 text-muted-foreground pointer-events-none">
+            {placeholder}
+          </div>
+        )}
       </div>
     </div>
   );
