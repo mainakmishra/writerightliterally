@@ -1,11 +1,14 @@
 import { Suggestion } from '@/types/grammar';
 import { SuggestionCard } from './SuggestionCard';
-import { AlertCircle, Lightbulb, BookOpen, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Lightbulb, BookOpen, CheckCircle2, RefreshCw, CheckCheck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface SuggestionsSidebarProps {
   suggestions: Suggestion[];
   onApply: (suggestion: Suggestion) => void;
   onDismiss: (suggestion: Suggestion) => void;
+  onAcceptAll: () => void;
+  onReanalyze: () => void;
   activeSuggestionId?: string;
   isAnalyzing?: boolean;
 }
@@ -13,7 +16,9 @@ interface SuggestionsSidebarProps {
 export function SuggestionsSidebar({ 
   suggestions, 
   onApply, 
-  onDismiss, 
+  onDismiss,
+  onAcceptAll,
+  onReanalyze,
   activeSuggestionId,
   isAnalyzing 
 }: SuggestionsSidebarProps) {
@@ -36,7 +41,18 @@ export function SuggestionsSidebar({
     <div className="w-80 shrink-0 bg-card border-l border-border overflow-y-auto">
       {/* Stats Header */}
       <div className="sticky top-0 bg-card border-b border-border p-4 z-10">
-        <h2 className="font-semibold text-foreground mb-3">Suggestions</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-foreground">Suggestions</h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onReanalyze}
+            className="h-8 px-2 text-xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5 mr-1" />
+            Re-analyze
+          </Button>
+        </div>
         <div className="grid grid-cols-3 gap-2">
           <div className="flex items-center gap-1.5 text-xs">
             <AlertCircle className="w-3.5 h-3.5 text-destructive" />
@@ -57,6 +73,18 @@ export function SuggestionsSidebar({
             </span>
           </div>
         </div>
+        
+        {suggestions.length > 0 && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onAcceptAll}
+            className="w-full mt-3 h-8 text-xs"
+          >
+            <CheckCheck className="w-3.5 h-3.5 mr-1.5" />
+            Accept All ({suggestions.length})
+          </Button>
+        )}
       </div>
 
       {/* Suggestions List */}

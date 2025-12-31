@@ -209,6 +209,53 @@ export function useTextAnalysis() {
     setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
   }, []);
 
+  const acceptAllSuggestions = useCallback(() => {
+    let currentText = textRef.current;
+    
+    // Sort suggestions by startIndex in reverse order to apply from end to start
+    // This prevents index shifting issues
+    const sortedSuggestions = [...suggestions].sort((a, b) => b.startIndex - a.startIndex);
+    
+    for (const suggestion of sortedSuggestions) {
+      let startIdx = suggestion.startIndex;
+      let endIdx = suggestion.endIndex;
+      
+      const textAtOriginalPos = currentText.slice(startIdx, endIdx);
+      
+      // If the text at the original position doesn't match, search for it
+      if (textAtOriginalPos.toLowerCase() !== suggestion.original.toLowerCase()) {
+        const searchIdx = currentText.toLowerCase().indexOf(suggestion.original.toLowerCase());
+        if (searchIdx !== -1) {
+          startIdx = searchIdx;
+          endIdx = searchIdx + suggestion.original.length;
+        } else {
+          // Skip this suggestion if we can't find it
+          continue;
+        }
+      }
+      
+      // Apply the replacement
+      currentText = 
+        currentText.slice(0, startIdx) + 
+        suggestion.replacement + 
+        currentText.slice(endIdx);
+    }
+    
+    setText(currentText);
+    setSuggestions([]);
+    lastAnalyzedTextRef.current = '';
+    
+    // Re-analyze after all suggestions applied
+    setTimeout(() => {
+      analyze(currentText);
+    }, 100);
+  }, [suggestions, analyze]);
+
+  const reanalyze = useCallback(() => {
+    lastAnalyzedTextRef.current = '';
+    analyzeWithAI(textRef.current);
+  }, [analyzeWithAI]);
+
   const clearText = useCallback(() => {
     setText('');
     setSuggestions([]);
@@ -244,6 +291,8 @@ export function useTextAnalysis() {
     setActiveSuggestionId,
     applySuggestion,
     dismissSuggestion,
+    acceptAllSuggestions,
+    reanalyze,
     clearText,
   };
 }
