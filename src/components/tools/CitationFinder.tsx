@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, ExternalLink, Search, Copy, Check } from 'lucide-react';
+import { BookOpen, ExternalLink, Search, Copy, Check, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -12,6 +12,7 @@ interface CitationNeeded {
   reason: string;
   suggestedSources: string[];
   searchQuery: string;
+  foundSources?: string[];
 }
 
 interface CitationResult {
@@ -42,17 +43,17 @@ export function CitationFinder({ text }: CitationFinderProps) {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-writing-tools', {
-        body: { tool: 'find-citations', text },
+      // Use Perplexity for web-powered citation finding
+      const { data, error } = await supabase.functions.invoke('perplexity-search', {
+        body: { type: 'find-citations', text },
       });
 
       if (error) throw error;
       
-      // Validate response structure
       if (data && Array.isArray(data.citationsNeeded) && typeof data.citationScore === 'number') {
         setResult(data);
       } else {
-        throw new Error('Invalid response from AI. Please try again.');
+        throw new Error('Invalid response. Please try again.');
       }
     } catch (error: any) {
       console.error('Citation finder error:', error);
@@ -82,15 +83,19 @@ export function CitationFinder({ text }: CitationFinderProps) {
         <div className="flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-primary" />
           <h3 className="font-semibold">Citation Finder</h3>
+          <Badge variant="secondary" className="text-xs">
+            <Globe className="w-3 h-3 mr-1" />
+            Web Search
+          </Badge>
         </div>
         <Button onClick={handleFind} disabled={isLoading || !text.trim()}>
           <Search className={`w-4 h-4 mr-2 ${isLoading ? 'animate-pulse' : ''}`} />
-          {isLoading ? 'Analyzing...' : 'Find Citations'}
+          {isLoading ? 'Searching...' : 'Find Citations'}
         </Button>
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Identify claims that need citations and get suggestions for finding sources.
+        Search the web to find citations and sources for your claims.
       </p>
 
       {result && (
@@ -118,6 +123,24 @@ export function CitationFinder({ text }: CitationFinderProps) {
                       </Badge>
                     ))}
                   </div>
+
+                  {citation.foundSources && citation.foundSources.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                      <span className="text-xs text-muted-foreground w-full">Found sources:</span>
+                      {citation.foundSources.map((source, j) => (
+                        <Button
+                          key={j}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-6"
+                          onClick={() => window.open(source, '_blank')}
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          Source {j + 1}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2 pt-2 border-t border-border">
                     <span className="text-xs text-muted-foreground">Search:</span>

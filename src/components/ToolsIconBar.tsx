@@ -10,6 +10,7 @@ import {
   BookOpen, 
   GraduationCap, 
   Users,
+  FileSearch,
   X,
   LucideIcon
 } from 'lucide-react';
@@ -29,6 +30,7 @@ import { FactChecker } from '@/components/tools/FactChecker';
 import { CitationFinder } from '@/components/tools/CitationFinder';
 import { AIGrader } from '@/components/tools/AIGrader';
 import { ReaderReactions } from '@/components/tools/ReaderReactions';
+import { PlagiarismChecker } from '@/components/tools/PlagiarismChecker';
 
 interface Tool {
   id: string;
@@ -48,8 +50,9 @@ const tools: Tool[] = [
   { id: 'paraphraser', label: 'Paraphraser', icon: FileText, description: 'Paraphrase content' },
   { id: 'humanizer', label: 'Humanizer', icon: User, description: 'Make text human-like' },
   { id: 'detector', label: 'AI Detector', icon: Shield, description: 'Detect AI content' },
-  { id: 'factcheck', label: 'Fact Check', icon: CheckCircle, description: 'Verify facts' },
-  { id: 'citation', label: 'Citations', icon: BookOpen, description: 'Find citations' },
+  { id: 'factcheck', label: 'Fact Check', icon: CheckCircle, description: 'Verify facts (Web)' },
+  { id: 'citation', label: 'Citations', icon: BookOpen, description: 'Find citations (Web)' },
+  { id: 'plagiarism', label: 'Plagiarism', icon: FileSearch, description: 'Check plagiarism (Web)' },
   { id: 'grader', label: 'Grader', icon: GraduationCap, description: 'Grade your writing' },
   { id: 'reactions', label: 'Reactions', icon: Users, description: 'Reader reactions' },
 ];
@@ -77,6 +80,8 @@ export function ToolsIconBar({ text, onApplyRewrite }: ToolsIconBarProps) {
         return <FactChecker text={text} />;
       case 'citation':
         return <CitationFinder text={text} />;
+      case 'plagiarism':
+        return <PlagiarismChecker text={text} />;
       case 'grader':
         return <AIGrader text={text} />;
       case 'reactions':
