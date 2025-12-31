@@ -47,7 +47,13 @@ export function AIDetector({ text }: AIDetectorProps) {
       });
 
       if (error) throw error;
-      if (data) setResult(data);
+      
+      // Validate response structure
+      if (data && typeof data.aiProbability === 'number' && typeof data.humanProbability === 'number' && data.verdict) {
+        setResult(data);
+      } else {
+        throw new Error('Invalid response from AI. Please try again.');
+      }
     } catch (error: any) {
       console.error('Detection error:', error);
       toast({

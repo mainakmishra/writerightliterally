@@ -56,7 +56,13 @@ export function ReaderReactions({ text }: ReaderReactionsProps) {
       });
 
       if (error) throw error;
-      if (data) setResult(data);
+      
+      // Validate response structure
+      if (data && data.engagement && typeof data.engagement.score === 'number' && data.sentiment) {
+        setResult(data);
+      } else {
+        throw new Error('Invalid response from AI. Please try again.');
+      }
     } catch (error: any) {
       console.error('Reader reactions error:', error);
       toast({
