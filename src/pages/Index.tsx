@@ -39,6 +39,8 @@ const Index = () => {
     setActiveSuggestionId,
     applySuggestion,
     dismissSuggestion,
+    acceptAllSuggestions,
+    reanalyze,
     clearText,
   } = useTextAnalysis();
   
@@ -202,6 +204,8 @@ const Index = () => {
           suggestions={suggestions}
           onApply={applySuggestion}
           onDismiss={dismissSuggestion}
+          onAcceptAll={acceptAllSuggestions}
+          onReanalyze={reanalyze}
           activeSuggestionId={activeSuggestionId}
           isAnalyzing={isAnalyzing}
         />
