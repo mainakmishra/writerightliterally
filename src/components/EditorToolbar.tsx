@@ -17,7 +17,11 @@ import {
   Redo,
   Printer,
   RemoveFormatting,
-  Highlighter
+  Highlighter,
+  Type,
+  Palette,
+  MoreHorizontal,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -29,6 +33,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface EditorToolbarProps {
   onFormat: (command: string, value?: string) => void;
@@ -63,6 +78,8 @@ const highlightColors = [
 ];
 
 export function EditorToolbar({ onFormat, onPrint }: EditorToolbarProps) {
+  const isMobile = useIsMobile();
+
   const ToolbarButton = ({ 
     icon: Icon, 
     command, 
@@ -79,7 +96,7 @@ export function EditorToolbar({ onFormat, onPrint }: EditorToolbarProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 shrink-0"
           onClick={() => onFormat(command, value)}
         >
           <Icon className="h-4 w-4" />
@@ -91,6 +108,160 @@ export function EditorToolbar({ onFormat, onPrint }: EditorToolbarProps) {
     </Tooltip>
   );
 
+  // Mobile toolbar with dropdown menus
+  if (isMobile) {
+    return (
+      <div className="flex items-center gap-1 p-2 border-b border-border bg-muted/30 overflow-x-auto">
+        {/* Essential formatting buttons always visible */}
+        <ToolbarButton icon={Bold} command="bold" tooltip="Bold" />
+        <ToolbarButton icon={Italic} command="italic" tooltip="Italic" />
+        <ToolbarButton icon={Underline} command="underline" tooltip="Underline" />
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
+        {/* Text Format Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 px-2 gap-1">
+              <Type className="h-4 w-4" />
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Font Family</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {fontFamilies.map((font) => (
+                  <DropdownMenuItem 
+                    key={font.value} 
+                    onClick={() => onFormat('fontName', font.value)}
+                    style={{ fontFamily: font.value }}
+                  >
+                    {font.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Font Size</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {fontSizes.map((size) => (
+                  <DropdownMenuItem 
+                    key={size.value} 
+                    onClick={() => onFormat('fontSize', size.value)}
+                  >
+                    {size.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onFormat('strikeThrough')}>
+              <Strikethrough className="h-4 w-4 mr-2" /> Strikethrough
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onFormat('subscript')}>
+              <Subscript className="h-4 w-4 mr-2" /> Subscript
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onFormat('superscript')}>
+              <Superscript className="h-4 w-4 mr-2" /> Superscript
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onFormat('removeFormat')}>
+              <RemoveFormatting className="h-4 w-4 mr-2" /> Clear Formatting
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Highlight Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 px-2 gap-1">
+              <Highlighter className="h-4 w-4" />
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {highlightColors.map((color) => (
+              <DropdownMenuItem 
+                key={color.value} 
+                onClick={() => onFormat('backColor', color.value)}
+              >
+                <div 
+                  className="w-4 h-4 rounded mr-2" 
+                  style={{ backgroundColor: color.value }}
+                />
+                {color.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
+        {/* More Options Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 px-2 gap-1">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <AlignLeft className="h-4 w-4 mr-2" /> Alignment
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => onFormat('justifyLeft')}>
+                  <AlignLeft className="h-4 w-4 mr-2" /> Left
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onFormat('justifyCenter')}>
+                  <AlignCenter className="h-4 w-4 mr-2" /> Center
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onFormat('justifyRight')}>
+                  <AlignRight className="h-4 w-4 mr-2" /> Right
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onFormat('justifyFull')}>
+                  <AlignJustify className="h-4 w-4 mr-2" /> Justify
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <List className="h-4 w-4 mr-2" /> Lists
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => onFormat('insertUnorderedList')}>
+                  <List className="h-4 w-4 mr-2" /> Bullet List
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onFormat('insertOrderedList')}>
+                  <ListOrdered className="h-4 w-4 mr-2" /> Numbered List
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onFormat('outdent')}>
+                  <Outdent className="h-4 w-4 mr-2" /> Decrease Indent
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onFormat('indent')}>
+                  <Indent className="h-4 w-4 mr-2" /> Increase Indent
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onFormat('undo')}>
+              <Undo className="h-4 w-4 mr-2" /> Undo
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onFormat('redo')}>
+              <Redo className="h-4 w-4 mr-2" /> Redo
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onPrint}>
+              <Printer className="h-4 w-4 mr-2" /> Print
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  }
+
+  // Desktop toolbar
   return (
     <div className="flex items-center gap-1 p-2 border-b border-border bg-muted/30 flex-wrap">
       {/* Undo/Redo */}
