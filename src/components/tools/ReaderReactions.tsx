@@ -3,6 +3,7 @@ import { Users, ThumbsUp, ThumbsDown, Meh, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface Reaction {
@@ -31,12 +32,11 @@ interface ReactionsResult {
 
 interface ReaderReactionsProps {
   text: string;
-  onAnalyze: (text: string) => Promise<ReactionsResult | null>;
-  isLoading: boolean;
 }
 
-export function ReaderReactions({ text, onAnalyze, isLoading }: ReaderReactionsProps) {
+export function ReaderReactions({ text }: ReaderReactionsProps) {
   const [result, setResult] = useState<ReactionsResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleAnalyze = async () => {
@@ -48,9 +48,24 @@ export function ReaderReactions({ text, onAnalyze, isLoading }: ReaderReactionsP
       });
       return;
     }
-    const data = await onAnalyze(text);
-    if (data) {
-      setResult(data);
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-writing-tools', {
+        body: { tool: 'reader-reactions', text },
+      });
+
+      if (error) throw error;
+      if (data) setResult(data);
+    } catch (error: any) {
+      console.error('Reader reactions error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -63,7 +78,7 @@ export function ReaderReactions({ text, onAnalyze, isLoading }: ReaderReactionsP
   };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-primary" />

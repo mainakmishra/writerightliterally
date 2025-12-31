@@ -3,6 +3,7 @@ import { Shuffle, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface ParaphraseVersion {
@@ -17,14 +18,13 @@ interface ParaphraseResult {
 
 interface AIParaphraserProps {
   text: string;
-  onParaphrase: (text: string) => Promise<ParaphraseResult | null>;
   onApply: (newText: string) => void;
-  isLoading: boolean;
 }
 
-export function AIParaphraser({ text, onParaphrase, onApply, isLoading }: AIParaphraserProps) {
+export function AIParaphraser({ text, onApply }: AIParaphraserProps) {
   const [result, setResult] = useState<ParaphraseResult | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleParaphrase = async () => {
@@ -36,9 +36,24 @@ export function AIParaphraser({ text, onParaphrase, onApply, isLoading }: AIPara
       });
       return;
     }
-    const data = await onParaphrase(text);
-    if (data) {
-      setResult(data);
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-writing-tools', {
+        body: { tool: 'paraphrase', text },
+      });
+
+      if (error) throw error;
+      if (data) setResult(data);
+    } catch (error: any) {
+      console.error('Paraphrase error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -67,7 +82,7 @@ export function AIParaphraser({ text, onParaphrase, onApply, isLoading }: AIPara
   };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Shuffle className="w-5 h-5 text-primary" />

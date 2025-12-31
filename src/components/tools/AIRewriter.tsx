@@ -3,6 +3,7 @@ import { RefreshCw, Copy, Check, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface RewriteResult {
@@ -13,14 +14,13 @@ interface RewriteResult {
 
 interface AIRewriterProps {
   text: string;
-  onRewrite: (text: string) => Promise<RewriteResult | null>;
   onApply: (newText: string) => void;
-  isLoading: boolean;
 }
 
-export function AIRewriter({ text, onRewrite, onApply, isLoading }: AIRewriterProps) {
+export function AIRewriter({ text, onApply }: AIRewriterProps) {
   const [result, setResult] = useState<RewriteResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleRewrite = async () => {
@@ -32,9 +32,24 @@ export function AIRewriter({ text, onRewrite, onApply, isLoading }: AIRewriterPr
       });
       return;
     }
-    const data = await onRewrite(text);
-    if (data) {
-      setResult(data);
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-writing-tools', {
+        body: { tool: 'rewrite', text },
+      });
+
+      if (error) throw error;
+      if (data) setResult(data);
+    } catch (error: any) {
+      console.error('Rewrite error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -57,7 +72,7 @@ export function AIRewriter({ text, onRewrite, onApply, isLoading }: AIRewriterPr
   };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" />

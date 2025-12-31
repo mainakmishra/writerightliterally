@@ -3,6 +3,7 @@ import { User, Copy, Check, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface HumanizeResult {
@@ -13,14 +14,13 @@ interface HumanizeResult {
 
 interface AIHumanizerProps {
   text: string;
-  onHumanize: (text: string) => Promise<HumanizeResult | null>;
   onApply: (newText: string) => void;
-  isLoading: boolean;
 }
 
-export function AIHumanizer({ text, onHumanize, onApply, isLoading }: AIHumanizerProps) {
+export function AIHumanizer({ text, onApply }: AIHumanizerProps) {
   const [result, setResult] = useState<HumanizeResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleHumanize = async () => {
@@ -32,9 +32,24 @@ export function AIHumanizer({ text, onHumanize, onApply, isLoading }: AIHumanize
       });
       return;
     }
-    const data = await onHumanize(text);
-    if (data) {
-      setResult(data);
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-writing-tools', {
+        body: { tool: 'humanize', text },
+      });
+
+      if (error) throw error;
+      if (data) setResult(data);
+    } catch (error: any) {
+      console.error('Humanize error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -57,7 +72,7 @@ export function AIHumanizer({ text, onHumanize, onApply, isLoading }: AIHumanize
   };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Heart className="w-5 h-5 text-primary" />

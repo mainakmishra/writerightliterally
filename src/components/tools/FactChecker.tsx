@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface Claim {
@@ -21,12 +22,11 @@ interface FactCheckResult {
 
 interface FactCheckerProps {
   text: string;
-  onCheck: (text: string) => Promise<FactCheckResult | null>;
-  isLoading: boolean;
 }
 
-export function FactChecker({ text, onCheck, isLoading }: FactCheckerProps) {
+export function FactChecker({ text }: FactCheckerProps) {
   const [result, setResult] = useState<FactCheckResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleCheck = async () => {
@@ -38,9 +38,24 @@ export function FactChecker({ text, onCheck, isLoading }: FactCheckerProps) {
       });
       return;
     }
-    const data = await onCheck(text);
-    if (data) {
-      setResult(data);
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-writing-tools', {
+        body: { tool: 'fact-check', text },
+      });
+
+      if (error) throw error;
+      if (data) setResult(data);
+    } catch (error: any) {
+      console.error('Fact check error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -63,7 +78,7 @@ export function FactChecker({ text, onCheck, isLoading }: FactCheckerProps) {
   };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-primary" />

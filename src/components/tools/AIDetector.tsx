@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Bot, User, Search, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Bot, User, Search, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface Indicator {
@@ -22,12 +23,11 @@ interface DetectionResult {
 
 interface AIDetectorProps {
   text: string;
-  onDetect: (text: string) => Promise<DetectionResult | null>;
-  isLoading: boolean;
 }
 
-export function AIDetector({ text, onDetect, isLoading }: AIDetectorProps) {
+export function AIDetector({ text }: AIDetectorProps) {
   const [result, setResult] = useState<DetectionResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleDetect = async () => {
@@ -39,9 +39,24 @@ export function AIDetector({ text, onDetect, isLoading }: AIDetectorProps) {
       });
       return;
     }
-    const data = await onDetect(text);
-    if (data) {
-      setResult(data);
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-writing-tools', {
+        body: { tool: 'detect-ai', text },
+      });
+
+      if (error) throw error;
+      if (data) setResult(data);
+    } catch (error: any) {
+      console.error('Detection error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -58,7 +73,7 @@ export function AIDetector({ text, onDetect, isLoading }: AIDetectorProps) {
   };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Search className="w-5 h-5 text-primary" />

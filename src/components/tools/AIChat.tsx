@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Bot, User, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -11,15 +13,14 @@ interface ChatMessage {
 
 interface AIChatProps {
   text: string;
-  chatHistory: ChatMessage[];
-  onSendMessage: (text: string, message: string) => Promise<string | null>;
-  onClear: () => void;
-  isLoading: boolean;
 }
 
-export function AIChat({ text, chatHistory, onSendMessage, onClear, isLoading }: AIChatProps) {
+export function AIChat({ text }: AIChatProps) {
   const [input, setInput] = useState('');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -27,30 +28,65 @@ export function AIChat({ text, chatHistory, onSendMessage, onClear, isLoading }:
     }
   }, [chatHistory]);
 
+  const handleClear = useCallback(() => {
+    setChatHistory([]);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     
     const message = input;
     setInput('');
-    await onSendMessage(text, message);
+    
+    const userMessage: ChatMessage = { role: 'user', content: message };
+    setChatHistory(prev => [...prev, userMessage]);
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-writing-tools', {
+        body: { 
+          tool: 'chat', 
+          text, 
+          message,
+          conversationHistory: chatHistory
+        },
+      });
+
+      if (error) throw error;
+      
+      if (data?.response) {
+        const assistantMessage: ChatMessage = { role: 'assistant', content: data.response };
+        setChatHistory(prev => [...prev, assistantMessage]);
+      }
+    } catch (error: any) {
+      console.error('Chat error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+      setChatHistory(prev => prev.slice(0, -1));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b border-border">
+    <div className="flex flex-col h-[400px]">
+      <div className="flex items-center justify-between pb-4 border-b border-border">
         <div className="flex items-center gap-2">
           <Bot className="w-5 h-5 text-primary" />
           <h3 className="font-semibold">AI Writing Assistant</h3>
         </div>
         {chatHistory.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={onClear}>
+          <Button variant="ghost" size="sm" onClick={handleClear}>
             <Trash2 className="w-4 h-4" />
           </Button>
         )}
       </div>
 
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 py-4" ref={scrollRef}>
         {chatHistory.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
             <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -103,7 +139,7 @@ export function AIChat({ text, chatHistory, onSendMessage, onClear, isLoading }:
         )}
       </ScrollArea>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t border-border">
+      <form onSubmit={handleSubmit} className="pt-4 border-t border-border">
         <div className="flex gap-2">
           <Textarea
             value={input}
