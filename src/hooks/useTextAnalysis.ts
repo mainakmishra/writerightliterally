@@ -17,7 +17,7 @@ function calculateStats(text: string): WritingStats {
 
   const avgSentenceLength = sentenceCount > 0 ? wordCount / sentenceCount : 0;
   const avgWordLength = wordCount > 0 ? characterCount / wordCount : 0;
-  const readabilityScore = Math.max(0, Math.min(100,
+  const readabilityScore = Math.max(0, Math.min(100, 
     100 - (avgSentenceLength * 1.5) - (avgWordLength * 5) + 50
   ));
 
@@ -47,7 +47,7 @@ export function useTextAnalysis() {
   const [overallScore, setOverallScore] = useState(100);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | undefined>();
-
+  
   const debounceRef = useRef<NodeJS.Timeout>();
   const lastAnalyzedTextRef = useRef<string>('');
   const textRef = useRef<string>('');
@@ -104,14 +104,14 @@ export function useTextAnalysis() {
             const startIdx = s.startIndex ?? 0;
             const endIdx = s.endIndex ?? 0;
             const textAtLocation = textToAnalyze.slice(startIdx, endIdx);
-
+            
             // Only include if original matches what's actually in the text
             // or if it's a reasonable match (AI might paraphrase slightly)
-            return s.original &&
-              startIdx >= 0 &&
-              endIdx <= textToAnalyze.length &&
-              (textAtLocation.toLowerCase().includes(s.original.toLowerCase().substring(0, 3)) ||
-                s.original.toLowerCase().includes(textAtLocation.toLowerCase().substring(0, 3)));
+            return s.original && 
+                   startIdx >= 0 && 
+                   endIdx <= textToAnalyze.length &&
+                   (textAtLocation.toLowerCase().includes(s.original.toLowerCase().substring(0, 3)) ||
+                    s.original.toLowerCase().includes(textAtLocation.toLowerCase().substring(0, 3)));
           })
           .map((s: any, idx: number) => ({
             id: `ai-${Date.now()}-${idx}`,
@@ -122,7 +122,7 @@ export function useTextAnalysis() {
             startIndex: s.startIndex ?? 0,
             endIndex: s.endIndex ?? 0,
           }));
-
+        
         setSuggestions(validSuggestions);
         setOverallScore(data.overallScore ?? 85);
       } else {
@@ -162,14 +162,14 @@ export function useTextAnalysis() {
 
   const applySuggestion = useCallback((suggestion: Suggestion) => {
     const currentText = textRef.current;
-
+    
     // Find the original text in the current text
     // First try exact position match
     let startIdx = suggestion.startIndex;
     let endIdx = suggestion.endIndex;
-
+    
     const textAtOriginalPos = currentText.slice(startIdx, endIdx);
-
+    
     // If the text at the original position doesn't match, search for it
     if (textAtOriginalPos.toLowerCase() !== suggestion.original.toLowerCase()) {
       // Search for the original text in the current text
@@ -184,25 +184,25 @@ export function useTextAnalysis() {
         return;
       }
     }
-
+    
     // Calculate the length difference for adjusting other suggestions
     const lengthDiff = suggestion.replacement.length - suggestion.original.length;
-
+    
     // Apply the replacement
-    const newText =
-      currentText.slice(0, startIdx) +
-      suggestion.replacement +
+    const newText = 
+      currentText.slice(0, startIdx) + 
+      suggestion.replacement + 
       currentText.slice(endIdx);
-
+    
     setText(newText);
-
+    
     // Update lastAnalyzedTextRef to prevent auto re-analysis
     lastAnalyzedTextRef.current = newText;
-
+    
     // Remove the applied suggestion and adjust indices of remaining suggestions
     setSuggestions(prev => {
       const remaining = prev.filter(s => s.id !== suggestion.id);
-
+      
       // If all suggestions are handled, trigger re-analysis
       if (remaining.length === 0) {
         lastAnalyzedTextRef.current = '';
@@ -211,7 +211,7 @@ export function useTextAnalysis() {
         }, 100);
         return [];
       }
-
+      
       // Adjust indices for suggestions that come after the applied one
       return remaining.map(s => {
         if (s.startIndex > startIdx) {
@@ -229,7 +229,7 @@ export function useTextAnalysis() {
   const dismissSuggestion = useCallback((suggestion: Suggestion) => {
     setSuggestions(prev => {
       const remaining = prev.filter(s => s.id !== suggestion.id);
-
+      
       // If all suggestions are handled, trigger re-analysis
       if (remaining.length === 0) {
         lastAnalyzedTextRef.current = '';
@@ -237,7 +237,7 @@ export function useTextAnalysis() {
           analyze(text);
         }, 100);
       }
-
+      
       return remaining;
     });
   }, [analyze, text]);
@@ -266,48 +266,6 @@ export function useTextAnalysis() {
     };
   }, []);
 
-
-
-  const reanalyze = useCallback(() => {
-    lastAnalyzedTextRef.current = '';
-    analyzeWithAI(text);
-  }, [text, analyzeWithAI]);
-
-  const acceptAllSuggestions = useCallback(() => {
-    if (!suggestions.length) return;
-
-    let newText = textRef.current;
-
-    // Sort by index in descending order to prevent index shifting issues
-    const sortedSuggestions = [...suggestions].sort((a, b) => b.startIndex - a.startIndex);
-
-    let appliedCount = 0;
-
-    sortedSuggestions.forEach(suggestion => {
-      const { startIndex, endIndex, original, replacement } = suggestion;
-
-      // Verify that the text at this position matches what we expect
-      // checking case-insensitively to be more robust
-      const actualText = newText.slice(startIndex, endIndex);
-
-      if (actualText.toLowerCase() === original.toLowerCase()) {
-        newText = newText.slice(0, startIndex) + replacement + newText.slice(endIndex);
-        appliedCount++;
-      }
-    });
-
-    if (appliedCount > 0) {
-      setText(newText);
-      setSuggestions([]);
-
-      // Force re-analysis after changes
-      lastAnalyzedTextRef.current = '';
-      setTimeout(() => {
-        analyzeWithAI(newText); // Use analyzeWithAI directly to bypass debounce if desired, or analyze() to debounce
-      }, 100);
-    }
-  }, [suggestions, analyzeWithAI]);
-
   return {
     text,
     setText: handleTextChange,
@@ -319,8 +277,6 @@ export function useTextAnalysis() {
     setActiveSuggestionId,
     applySuggestion,
     dismissSuggestion,
-    acceptAllSuggestions,
-    reanalyze,
     clearText,
   };
 }
