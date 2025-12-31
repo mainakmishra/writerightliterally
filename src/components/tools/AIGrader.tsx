@@ -3,7 +3,7 @@ import { GraduationCap, Award, TrendingUp, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface CriteriaScore {
@@ -29,12 +29,11 @@ interface GradeResult {
 
 interface AIGraderProps {
   text: string;
-  onGrade: (text: string) => Promise<GradeResult | null>;
-  isLoading: boolean;
 }
 
-export function AIGrader({ text, onGrade, isLoading }: AIGraderProps) {
+export function AIGrader({ text }: AIGraderProps) {
   const [result, setResult] = useState<GradeResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleGrade = async () => {
@@ -46,9 +45,24 @@ export function AIGrader({ text, onGrade, isLoading }: AIGraderProps) {
       });
       return;
     }
-    const data = await onGrade(text);
-    if (data) {
-      setResult(data);
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-writing-tools', {
+        body: { tool: 'grade', text },
+      });
+
+      if (error) throw error;
+      if (data) setResult(data);
+    } catch (error: any) {
+      console.error('Grading error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -73,7 +87,7 @@ export function AIGrader({ text, onGrade, isLoading }: AIGraderProps) {
   };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <GraduationCap className="w-5 h-5 text-primary" />
