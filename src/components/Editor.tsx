@@ -71,11 +71,16 @@ export function Editor({
 
   return (
     <div className="relative flex-1 bg-card rounded-xl shadow-medium border border-border overflow-hidden">
-      <div className="p-8 min-h-[500px]">
-        {/* Overlay for highlighting */}
+      <div className="relative p-8 min-h-[500px]">
+        {/* Overlay for highlighting - must match textarea exactly */}
         <div 
-          className="editor-content absolute inset-0 p-8 pointer-events-none whitespace-pre-wrap break-words text-foreground"
-          style={{ opacity: suggestions.length > 0 ? 1 : 0 }}
+          className="editor-content absolute inset-0 p-8 whitespace-pre-wrap break-words text-foreground overflow-hidden"
+          style={{ 
+            opacity: suggestions.length > 0 ? 1 : 0,
+            pointerEvents: 'none',
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word',
+          }}
           aria-hidden="true"
         >
           {getHighlightedText()}
@@ -87,10 +92,12 @@ export function Editor({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="editor-content w-full min-h-[400px] bg-transparent resize-none outline-none placeholder:text-muted-foreground"
+          className="editor-content w-full min-h-[400px] bg-transparent resize-none outline-none placeholder:text-muted-foreground relative z-10"
           style={{ 
             color: suggestions.length > 0 ? 'transparent' : 'inherit',
-            caretColor: 'hsl(var(--foreground))'
+            caretColor: 'hsl(var(--foreground))',
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word',
           }}
           spellCheck={false}
         />
