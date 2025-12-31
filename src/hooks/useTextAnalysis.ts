@@ -30,12 +30,19 @@ function analyzeTextLocally(text: string): AnalysisResult {
   // Common grammar mistakes
   const patterns = [
     { regex: /\bi\b(?=[^'"])/g, original: 'i', replacement: 'I', type: 'grammar' as const, message: 'Capitalize "I" when used as a pronoun.' },
+
+    // Common typos (expanded)
+    { regex: /\bwhet\b/gi, original: 'whet', replacement: 'what', type: 'spelling' as const, message: 'Possible typo: "whet" → "what".' },
+    { regex: /\byoue\b/gi, original: 'youe', replacement: 'your', type: 'spelling' as const, message: 'Possible typo: "youe" → "your".' },
+    { regex: /\bnme\b/gi, original: 'nme', replacement: 'name', type: 'spelling' as const, message: 'Possible typo: "nme" → "name".' },
+
     { regex: /\bteh\b/gi, original: 'teh', replacement: 'the', type: 'spelling' as const, message: 'Common typo for "the".' },
     { regex: /\brecieve\b/gi, original: 'recieve', replacement: 'receive', type: 'spelling' as const, message: 'Correct spelling is "receive" (i before e except after c).' },
     { regex: /\bdefinate\b/gi, original: 'definate', replacement: 'definite', type: 'spelling' as const, message: 'Correct spelling is "definite".' },
     { regex: /\boccured\b/gi, original: 'occured', replacement: 'occurred', type: 'spelling' as const, message: 'Correct spelling is "occurred" (double r).' },
     { regex: /\bseperately\b/gi, original: 'seperately', replacement: 'separately', type: 'spelling' as const, message: 'Correct spelling is "separately".' },
     { regex: /\buntill\b/gi, original: 'untill', replacement: 'until', type: 'spelling' as const, message: 'Correct spelling is "until" (single l).' },
+
     { regex: /\balot\b/gi, original: 'alot', replacement: 'a lot', type: 'grammar' as const, message: '"A lot" should be two words.' },
     { regex: /\byour\s+(welcome|right|wrong|crazy)\b/gi, original: 'your', replacement: "you're", type: 'grammar' as const, message: 'Use "you\'re" (you are) instead of "your".' },
     { regex: /\bthier\b/gi, original: 'thier', replacement: 'their', type: 'spelling' as const, message: 'Correct spelling is "their".' },
@@ -43,6 +50,7 @@ function analyzeTextLocally(text: string): AnalysisResult {
     { regex: /\bwould\s+of\b/gi, original: 'would of', replacement: 'would have', type: 'grammar' as const, message: 'Use "would have" instead of "would of".' },
     { regex: /\bshould\s+of\b/gi, original: 'should of', replacement: 'should have', type: 'grammar' as const, message: 'Use "should have" instead of "should of".' },
     { regex: /\bits\s+(a|the|very|so|too)\b/gi, original: 'its', replacement: "it's", type: 'grammar' as const, message: 'Use "it\'s" (it is) when followed by an article or adverb.' },
+
     { regex: /\s{2,}/g, original: '  ', replacement: ' ', type: 'style' as const, message: 'Remove extra spaces.' },
     { regex: /very\s+(good|nice|big|small|fast|slow)/gi, original: '', replacement: '', type: 'style' as const, message: 'Consider using a stronger, more specific word.' },
     { regex: /\breally\s+really\b/gi, original: 'really really', replacement: 'extremely', type: 'style' as const, message: 'Avoid repetitive intensifiers.' },
