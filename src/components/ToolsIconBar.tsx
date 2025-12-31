@@ -28,7 +28,7 @@ interface Tool {
   id: string;
   label: string;
   icon: LucideIcon;
-  color: string;
+  description: string;
 }
 
 interface ToolsIconBarProps {
@@ -37,15 +37,15 @@ interface ToolsIconBarProps {
 }
 
 const tools: Tool[] = [
-  { id: 'chat', label: 'AI Chat', icon: MessageSquare, color: 'text-primary' },
-  { id: 'rewriter', label: 'Rewriter', icon: RefreshCw, color: 'text-blue-500' },
-  { id: 'paraphraser', label: 'Paraphraser', icon: FileText, color: 'text-violet-500' },
-  { id: 'humanizer', label: 'Humanizer', icon: User, color: 'text-emerald-500' },
-  { id: 'detector', label: 'AI Detector', icon: Shield, color: 'text-amber-500' },
-  { id: 'factcheck', label: 'Fact Check', icon: CheckCircle, color: 'text-green-500' },
-  { id: 'citation', label: 'Citations', icon: BookOpen, color: 'text-pink-500' },
-  { id: 'grader', label: 'Grader', icon: GraduationCap, color: 'text-orange-500' },
-  { id: 'reactions', label: 'Reactions', icon: Users, color: 'text-cyan-500' },
+  { id: 'chat', label: 'AI Chat', icon: MessageSquare, description: 'Chat with AI' },
+  { id: 'rewriter', label: 'Rewriter', icon: RefreshCw, description: 'Rewrite your text' },
+  { id: 'paraphraser', label: 'Paraphraser', icon: FileText, description: 'Paraphrase content' },
+  { id: 'humanizer', label: 'Humanizer', icon: User, description: 'Make text human-like' },
+  { id: 'detector', label: 'AI Detector', icon: Shield, description: 'Detect AI content' },
+  { id: 'factcheck', label: 'Fact Check', icon: CheckCircle, description: 'Verify facts' },
+  { id: 'citation', label: 'Citations', icon: BookOpen, description: 'Find citations' },
+  { id: 'grader', label: 'Grader', icon: GraduationCap, description: 'Grade your writing' },
+  { id: 'reactions', label: 'Reactions', icon: Users, description: 'Reader reactions' },
 ];
 
 export function ToolsIconBar({ text, onApplyRewrite }: ToolsIconBarProps) {
@@ -88,19 +88,24 @@ export function ToolsIconBar({ text, onApplyRewrite }: ToolsIconBarProps) {
       {/* Expanded Tool Panel */}
       {activeTool && (
         <div className="w-80 lg:w-96 bg-card border-l border-border flex flex-col animate-slide-in-right">
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
+            <div className="flex items-center gap-3">
               {activeToolData && (
                 <>
-                  <activeToolData.icon className={cn("h-5 w-5", activeToolData.color)} />
-                  <h3 className="font-semibold text-foreground">{activeToolData.label}</h3>
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <activeToolData.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">{activeToolData.label}</h3>
+                    <p className="text-xs text-muted-foreground">{activeToolData.description}</p>
+                  </div>
                 </>
               )}
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
               onClick={() => setActiveTool(null)}
             >
               <X className="h-4 w-4" />
@@ -113,44 +118,66 @@ export function ToolsIconBar({ text, onApplyRewrite }: ToolsIconBarProps) {
       )}
 
       {/* Icon Bar */}
-      <div className="w-14 bg-card border-l border-border flex flex-col items-center py-4 gap-1">
-        {tools.map((tool) => {
+      <div className="w-16 bg-gradient-to-b from-card to-card/95 border-l border-border flex flex-col items-center py-4 gap-2">
+        <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2 px-2">
+          Tools
+        </div>
+        
+        {tools.map((tool, index) => {
           const isActive = activeTool === tool.id;
           const isHovered = hoveredTool === tool.id;
           
           return (
             <div
               key={tool.id}
-              className="relative"
+              className="relative group"
               onMouseEnter={() => setHoveredTool(tool.id)}
               onMouseLeave={() => setHoveredTool(null)}
+              style={{ animationDelay: `${index * 50}ms` }}
             >
               <button
                 onClick={() => handleToolClick(tool.id)}
                 className={cn(
-                  "w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200",
+                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 relative overflow-hidden",
                   isActive 
-                    ? "bg-primary/10 ring-2 ring-primary" 
-                    : "hover:bg-muted"
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105" 
+                    : "hover:bg-primary/10 text-muted-foreground hover:text-primary hover:scale-105"
                 )}
               >
+                {/* Glow effect for active state */}
+                {isActive && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent" />
+                )}
                 <tool.icon className={cn(
-                  "h-5 w-5 transition-colors",
-                  isActive ? tool.color : "text-muted-foreground hover:text-foreground"
+                  "h-5 w-5 transition-all duration-300 relative z-10",
+                  isActive && "drop-shadow-sm"
                 )} />
               </button>
               
-              {/* Tooltip */}
-              {isHovered && !isActive && (
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-50">
-                  <div className="bg-popover text-popover-foreground px-3 py-1.5 rounded-md text-sm font-medium shadow-lg border border-border whitespace-nowrap animate-fade-in">
-                    {tool.label}
+              {/* Enhanced Tooltip */}
+              <div 
+                className={cn(
+                  "absolute right-full mr-3 top-1/2 -translate-y-1/2 z-50 pointer-events-none transition-all duration-200",
+                  isHovered ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"
+                )}
+              >
+                <div className="bg-popover text-popover-foreground px-3 py-2 rounded-lg shadow-xl border border-border min-w-max">
+                  <div className="flex items-center gap-2">
+                    <tool.icon className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-sm">{tool.label}</span>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{tool.description}</p>
                 </div>
-              )}
+                {/* Tooltip arrow */}
+                <div className="absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 bg-popover border-r border-t border-border rotate-45" />
+              </div>
             </div>
           );
         })}
+        
+        {/* Bottom decoration */}
+        <div className="flex-1" />
+        <div className="w-8 h-1 rounded-full bg-primary/20" />
       </div>
     </div>
   );
