@@ -34,6 +34,7 @@ function analyzeTextLocally(text: string): AnalysisResult {
     // Common typos (expanded)
     { regex: /\bwhet\b/gi, original: 'whet', replacement: 'what', type: 'spelling' as const, message: 'Possible typo: "whet" → "what".' },
     { regex: /\byoue\b/gi, original: 'youe', replacement: 'your', type: 'spelling' as const, message: 'Possible typo: "youe" → "your".' },
+    { regex: /\byeur\b/gi, original: 'yeur', replacement: 'your', type: 'spelling' as const, message: 'Possible typo: "yeur" → "your".' },
     { regex: /\bnme\b/gi, original: 'nme', replacement: 'name', type: 'spelling' as const, message: 'Possible typo: "nme" → "name".' },
 
     { regex: /\bteh\b/gi, original: 'teh', replacement: 'the', type: 'spelling' as const, message: 'Common typo for "the".' },
