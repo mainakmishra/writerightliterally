@@ -29,9 +29,9 @@ async function createOpikTrace(
     const tracePayload = {
       id: traceId,
       name,
-      project_name: "ai-writing-assistant",
-      start_time: now,
-      end_time: now,
+      projectName: "hello",
+      startTime: now,
+      endTime: now,
       input,
       output,
       metadata,
@@ -57,11 +57,11 @@ async function createOpikTrace(
     if (spans.length > 0) {
       const spanPayloads = spans.map((span) => ({
         id: crypto.randomUUID(),
-        trace_id: traceId,
+        traceId: traceId,
         name: span.name,
         type: span.type,
-        start_time: new Date(span.startTime).toISOString(),
-        end_time: new Date(span.endTime).toISOString(),
+        startTime: new Date(span.startTime).toISOString(),
+        endTime: new Date(span.endTime).toISOString(),
         input: span.input,
         output: span.output,
       }));
