@@ -51,6 +51,7 @@ async function createOpikTrace(
       method: "POST",
       headers: {
         "Authorization": OPIK_API_KEY,
+        "Comet-Workspace": "mainak-mishra",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ traces: [tracePayload] }),
@@ -79,6 +80,7 @@ async function createOpikTrace(
         method: "POST",
         headers: {
           "Authorization": OPIK_API_KEY,
+          "Comet-Workspace": "mainak-mishra",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ spans: spanPayloads }),
