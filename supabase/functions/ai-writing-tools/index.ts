@@ -17,6 +17,80 @@ type ToolType =
   | 'reader-reactions'
   | 'chat';
 
+// Opik tracing helper
+async function createOpikTrace(
+  name: string,
+  input: Record<string, unknown>,
+  output: Record<string, unknown>,
+  metadata: Record<string, unknown> = {},
+  spans: Array<{ name: string; type: string; input: Record<string, unknown>; output: Record<string, unknown>; startTime: number; endTime: number }> = []
+) {
+  const OPIK_API_KEY = Deno.env.get("OPIK_API_KEY");
+  if (!OPIK_API_KEY) {
+    console.log("OPIK_API_KEY not configured, skipping trace");
+    return;
+  }
+
+  const traceId = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  try {
+    // Create trace
+    const tracePayload = {
+      id: traceId,
+      name,
+      project_name: "ai-writing-assistant",
+      start_time: now,
+      end_time: now,
+      input,
+      output,
+      metadata,
+    };
+
+    const traceResponse = await fetch("https://www.comet.com/opik/api/v1/private/traces", {
+      method: "POST",
+      headers: {
+        "Authorization": OPIK_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ traces: [tracePayload] }),
+    });
+
+    if (!traceResponse.ok) {
+      const errorText = await traceResponse.text();
+      console.error("Opik trace error:", traceResponse.status, errorText);
+      return;
+    }
+
+    // Create spans if any
+    if (spans.length > 0) {
+      const spanPayloads = spans.map((span, index) => ({
+        id: crypto.randomUUID(),
+        trace_id: traceId,
+        name: span.name,
+        type: span.type,
+        start_time: new Date(span.startTime).toISOString(),
+        end_time: new Date(span.endTime).toISOString(),
+        input: span.input,
+        output: span.output,
+      }));
+
+      await fetch("https://www.comet.com/opik/api/v1/private/spans", {
+        method: "POST",
+        headers: {
+          "Authorization": OPIK_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ spans: spanPayloads }),
+      });
+    }
+
+    console.log(`Opik trace created: ${traceId}`);
+  } catch (error) {
+    console.error("Error creating Opik trace:", error);
+  }
+}
+
 const systemPrompts: Record<ToolType, string> = {
   proofread: `You are an expert proofreader. Find HIGH-CONFIDENCE, objective issues in the text.
 
@@ -207,6 +281,8 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const requestStartTime = Date.now();
+
   try {
     const { tool, text, message, conversationHistory } = await req.json();
     
@@ -235,6 +311,8 @@ serve(async (req) => {
       ];
     }
 
+    const llmStartTime = Date.now();
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -247,6 +325,8 @@ serve(async (req) => {
         temperature: tool === 'chat' ? 0.7 : 0.3,
       }),
     });
+
+    const llmEndTime = Date.now();
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -273,24 +353,55 @@ serve(async (req) => {
       throw new Error("No response from AI");
     }
 
+    let result;
+    
     // For chat, return the raw response
     if (tool === 'chat') {
-      return new Response(JSON.stringify({ response: content }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      result = { response: content };
+    } else {
+      // For other tools, try to parse JSON from the response
+      try {
+        // Try to extract JSON from the response (in case it's wrapped in markdown)
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
+        const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+        result = JSON.parse(jsonStr);
+      } catch (parseError) {
+        console.error("Failed to parse AI response as JSON:", content);
+        result = { raw: content };
+      }
     }
 
-    // For other tools, try to parse JSON from the response
-    let result;
-    try {
-      // Try to extract JSON from the response (in case it's wrapped in markdown)
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
-      result = JSON.parse(jsonStr);
-    } catch (parseError) {
-      console.error("Failed to parse AI response as JSON:", content);
-      result = { raw: content };
-    }
+    // Log trace to Opik (async, don't wait)
+    createOpikTrace(
+      `ai-writing-tools/${tool}`,
+      {
+        tool,
+        text: text?.slice(0, 500) + (text?.length > 500 ? '...' : ''),
+        message: message?.slice(0, 200),
+        messageCount: conversationHistory?.length || 0,
+      },
+      {
+        success: true,
+        resultType: tool === 'chat' ? 'chat_response' : 'json_response',
+        hasContent: !!content,
+      },
+      {
+        model: "google/gemini-2.5-flash",
+        temperature: tool === 'chat' ? 0.7 : 0.3,
+        latencyMs: llmEndTime - llmStartTime,
+        totalLatencyMs: Date.now() - requestStartTime,
+        inputTokensEstimate: text?.length || 0,
+        outputTokensEstimate: content?.length || 0,
+      },
+      [{
+        name: "llm_call",
+        type: "llm",
+        input: { messages: messages.map(m => ({ role: m.role, contentLength: m.content.length })) },
+        output: { contentLength: content?.length || 0, model: "google/gemini-2.5-flash" },
+        startTime: llmStartTime,
+        endTime: llmEndTime,
+      }]
+    );
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -299,6 +410,15 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error("Error in ai-writing-tools function:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
+
+    // Log error trace to Opik
+    createOpikTrace(
+      "ai-writing-tools/error",
+      { error: message },
+      { success: false, error: message },
+      { latencyMs: Date.now() - requestStartTime }
+    );
+
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
